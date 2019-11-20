@@ -34,6 +34,15 @@ def _wiki_request(params):
 
     return r.json()
 
+def _wiki_search_url_by_ID(page_ID):
+
+    search_page_ID = {
+        'prop': 'info',
+        'pageids': page_ID,
+        'inprop': 'url'
+    }
+
+    return _wiki_request(search_page_ID)['query']['pages'][str(page_ID)]['fullurl']
 
 class CategoryCrawler(object):
 
@@ -124,12 +133,15 @@ class CategoryCrawler(object):
                 'list': 'categorymembers',
                 'cmtype': 'page',
                 'cmlimit': 500,
-                'cmtitle': title,
+                'cmtitle': title
             }
 
             page_results = _wiki_request(search_params_pages)['query']['categorymembers']
             for page_result in page_results:
-                page_url = 'https://en.wikipedia.org/wiki/' + page_result['title'].replace(" ", "_")
+                #page_url = 'https://en.wikipedia.org/wiki/' + page_result['title'].replace(" ", "_")
+                page_id = page_result['pageid']
+                page_url = _wiki_search_url_by_ID(page_id)
+
                 page_title = page_result['title']
                 print(" " * ((max_depth) - (subcategory_depth * 2)) + page_result['title'] + " URL: " + page_url)
 
@@ -169,7 +181,7 @@ def main():
     subcategory_depth = int(sys.argv[1:][1])
 
     d = CategoryCrawler(portal)
-    d.search_and_store_graph(portal, subcategory_depth, max_depth=10, parent_node = "root_node")
+    d.search_and_store_graph(portal, subcategory_depth, max_depth=10, parent_node = "root_node", include_pages=False)
 
     graph_file_name = portal + '_D' + str(subcategory_depth) + '_category_graph.gexf'
     nx.write_gexf(d.get_category_graph(), graph_file_name)
