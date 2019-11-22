@@ -13,11 +13,9 @@ import networkx as nx
 from wiki_crawler_desira import CategoryCrawler
 
 
-#FIXME: check for the actual main page (Computer vision does not work)
-#FIXME: some pages are not found, the page ids should be used
 def get_main_page_from_category(category_name):
     try:
-        wiki_page = wikipedia.page(category_name.lstrip(u'Category:'))
+        wiki_page = wikipedia.page(category_name[len('Category:'):])
     except (PageError, DisambiguationError):
         raise
     return wiki_page
@@ -69,18 +67,12 @@ def identify_page_category_map(category_crawler_source, category_crawler_dest):
 
         if cat_source != 'root_node':
 
-            #if(type(get_main_page_from_category(cat_source)) != str): #If the main page actually exists
             try:
                 main_page = get_main_page_from_category(cat_source)
                 page_url = main_page.url
                 page_title = main_page.title
 
-                #pages_categories_map[page_title] = [] #list of tuples, which will include source_cat and dest_cat
-
                 main_page_cats_source = main_page.categories #get categories from main page
-
-                # print('page url: ' +  page_url)
-                # print('categories: ' + str(main_page_cats_source))
 
                 for main_page_cat in main_page_cats_source: #check if any of the categories of the page belong to the categories of the other portal
                     if ('Category:' + main_page_cat) in categories_dest:
@@ -117,10 +109,10 @@ def main():
     subcategory_depth = int(sys.argv[1:][2])
 
     d_A = CategoryCrawler(portal_A)
-    d_A.search_and_store_graph(portal_A, subcategory_depth, max_depth=10, parent_node="root_node", include_pages=True, node_type='name')
+    d_A.search_and_store_graph(portal_A, cat_page_id='unknown', subcategory_depth = subcategory_depth, max_depth=10, parent_node="root_node", include_pages=False, node_type='name')
 
     d_B = CategoryCrawler(portal_B)
-    d_B.search_and_store_graph(portal_B, subcategory_depth, max_depth=10, parent_node="root_node", include_pages=True, node_type='name')
+    d_B.search_and_store_graph(portal_B, cat_page_id='unknown', subcategory_depth = subcategory_depth, max_depth=10, parent_node="root_node", include_pages=False, node_type='name')
 
     common_pages, common_url = get_common_main_pages(d_A,d_B)
 
