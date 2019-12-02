@@ -54,8 +54,9 @@ that belongs to category_graph_dest.
 
 @:param category_crawler_source: category crawler with a category graph
 @:param category_crawler_dest: category crawler with a category graph
-@:param mode: select whether the search shall be performed only on the main pages of the categories (-m), or on all the pages belonging to the category (-p),
-or on all the links in the pages belonging to the category and pointing at pages that have a gategory in the other graph 
+
+Based the original graph, the search is performed on the main pages of the categories or no all the pages 
+belonging to the category. This behavious is embedded in the function get_page_from_node. 
 
 @:return pages_categories_map: a dictionary with keys associated to pages, and for each
 item includes a list of tuple (cat_source, cat_dest) indicating the source category, i.e., 
@@ -83,18 +84,19 @@ def identify_page_category_map(category_crawler_source, category_crawler_dest):
                 page_url = reference_page.url
                 page_title = reference_page.title
 
-                ref_page_cats_source = reference_page.categories #get categories from page
+                if page_title not in pages_categories_map.keys(): #if I didn't check this page already
+                    ref_page_cats_source = reference_page.categories #get categories from page
 
-                for ref_page_cat in ref_page_cats_source: #check if any of the categories of the page belong to the categories of the other portal
-                    if ('Category:' + ref_page_cat) in nodes_dest_category_only:
-                        print("page %s has category %s in common with the other portal" % (page_title, ref_page_cat))
+                    for ref_page_cat in ref_page_cats_source: #check if any of the categories of the page belong to the categories of the other portal
+                        if ('Category:' + ref_page_cat) in nodes_dest_category_only:
+                            print("page %s has category %s in common with the other portal" % (page_title, ref_page_cat))
 
-                        if page_title not in pages_categories_map.keys():
-                            pages_categories_map[page_title] = []
+                            if page_title not in pages_categories_map.keys():
+                                pages_categories_map[page_title] = []
 
-                        pages_categories_map[page_title].append((node_source, ref_page_cat))
+                            pages_categories_map[page_title].append((node_source, ref_page_cat))
 
-                        pages_url_map[page_title] = page_url
+                            pages_url_map[page_title] = page_url
             except (PageError, DisambiguationError):
                 print("Page for %s not found or ambiguous" % node_source)
 
@@ -133,18 +135,20 @@ def identify_link_category_map(category_crawler_source, category_crawler_dest):
                     page_url = reference_page.url
                     page_title = reference_page.title
 
-                    ref_page_cats_source = reference_page.categories  # get categories from page
+                    if page_title not in pages_categories_map.keys(): #If I didn't visit this link already
 
-                    for ref_page_cat in ref_page_cats_source:  # check if any of the categories of the page belong to the categories of the other portal
-                        if ('Category:' + ref_page_cat) in nodes_dest_category_only:
-                            print("page %s has category %s in common with the other portal" % (page_title, ref_page_cat))
+                        ref_page_cats_source = reference_page.categories  # get categories from page
 
-                            if page_title not in pages_categories_map.keys():
-                                pages_categories_map[page_title] = []
+                        for ref_page_cat in ref_page_cats_source:  # check if any of the categories of the page belong to the categories of the other portal
+                            if ('Category:' + ref_page_cat) in nodes_dest_category_only:
+                                print("page %s has category %s in common with the other portal" % (page_title, ref_page_cat))
 
-                            pages_categories_map[page_title].append((link_page_name, ref_page_cat))
+                                if page_title not in pages_categories_map.keys(): #This is true only the first time I check
+                                    pages_categories_map[page_title] = []
 
-                            pages_url_map[page_title] = page_url
+                                pages_categories_map[page_title].append((link_page_name, ref_page_cat))
+
+                                pages_url_map[page_title] = page_url
 
                 except (PageError, DisambiguationError):
                     print("Page for %s not found or ambiguous" % link_page_name)
