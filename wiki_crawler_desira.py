@@ -90,7 +90,10 @@ class CategoryCrawler(object):
     # in case it doesn't, we raise the error.
 
         try:
-            wiki_page = wikipedia.page(category_name[len('Category:'):])
+            if category_name.startswith('Category:'):
+                wiki_page = wikipedia.page(category_name[len('Category:'):])
+            else:
+                wiki_page = wikipedia.page(category_name)
         except Exception:
             raise
         return  wiki_page
@@ -205,7 +208,8 @@ class CategoryCrawler(object):
 # 3. Open a web server with python3 -m http.server in the folder named "network"
 # 4. Open a browser and set localhost:8000. This will visualise the graph
 
-#Call e.g.: python wiki_crawler_desira.py "Category:Artificial intelligence" 2
+#Call e.g.: python wiki_crawler_desira.py "Category:Artificial intelligence" 2, and it will save a gexf file about the
+#Artificial intelligence category, with depth 2.
 
 def main():
     portal = sys.argv[1:][0]

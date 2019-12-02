@@ -13,27 +13,31 @@ import networkx as nx
 from wiki_crawler_desira import CategoryCrawler
 
 
-def get_main_page_from_category(category_name):
+def get_page_from_node(category_name):
     try:
-        wiki_page = wikipedia.page(category_name[len('Category:'):])
-    except (PageError, DisambiguationError):
+        if category_name.startswith('Category:'):
+            wiki_page = wikipedia.page(category_name[len('Category:'):])
+        else:
+            wiki_page = wikipedia.page(category_name)
+    except Exception:
         raise
     return wiki_page
 
-def get_links_from_main_category_page(category):
+
+def get_links_from_page(page_name):
     links = []
 
     try:
-        links = get_main_page_from_category(category).links
-    except (TypeError, AttributeError):
+        links = get_page_from_node(page_name).links
+    except Exception:
         print("Title or links unavailable")
 
     return links
 
 def print_main_page_title_and_links(category):
     try:
-        print("Main Wiki page: " + str(get_main_page_from_category(category).title))
-        print("External links: " + str(get_main_page_from_category(category).links))
+        print("Main Wiki page: " + str(get_page_from_node(category).title))
+        print("External links: " + str(get_page_from_node(category).links))
     except (TypeError, AttributeError):
         print("Title or links unavailable")
 
@@ -41,17 +45,21 @@ def print_categories_of_page(page):
     for cat in page.categories:
         print(cat)
 
+
+
 '''
-The function identifies the main pages that belong to the categories of 
+The function identifies the pages that belong to the categories of 
 category_graph_source, and checks which ones of the pages have a category
 that belongs to category_graph_dest. 
 
 @:param category_crawler_source: category crawler with a category graph
 @:param category_crawler_dest: category crawler with a category graph
+@:param mode: select whether the search shall be performed only on the main pages of the categories (-m), or on all the pages belonging to the category (-p),
+or on all the links in the pages belonging to the category and pointing at pages that have a gategory in the other graph 
 
 @:return pages_categories_map: a dictionary with keys associated to pages, and for each
 item includes a list of tuple (cat_source, cat_dest) indicating the source category, i.e., 
-the category for which the page is a main page, and the cat_dest, i.e., the category
+the category to which the page belongs or from which the other category was reached, and the cat_dest, i.e., the category
 included in category_graph_dest that is an additional category for the identified page.
 
 @:return pages_url_map = map between main page names and URL  
@@ -60,93 +68,160 @@ def identify_page_category_map(category_crawler_source, category_crawler_dest):
     pages_categories_map = {}
     pages_url_map = {}
 
-    categories_dest = nx.DiGraph(category_crawler_dest.get_category_graph()).nodes
-    categories_source = nx.DiGraph(category_crawler_source.get_category_graph()).nodes
+    nodes_dest = nx.DiGraph(category_crawler_dest.get_category_graph()).nodes
+    nodes_source = nx.DiGraph(category_crawler_source.get_category_graph()).nodes
 
-    for cat_source in categories_source:
+    nodes_dest_category_only = [n for n in nodes_dest if n.startswith('Category:')] #get those nodes that are categories
 
-        if cat_source != 'root_node':
+    for node_source in nodes_source:
+
+        if node_source != 'root_node':
 
             try:
-                main_page = get_main_page_from_category(cat_source)
-                page_url = main_page.url
-                page_title = main_page.title
+                reference_page = get_page_from_node(node_source)
 
-                main_page_cats_source = main_page.categories #get categories from main page
+                page_url = reference_page.url
+                page_title = reference_page.title
 
-                for main_page_cat in main_page_cats_source: #check if any of the categories of the page belong to the categories of the other portal
-                    if ('Category:' + main_page_cat) in categories_dest:
-                        print("page %s (main page of category %s) has category %s in common with the other portal" % (page_title, cat_source, main_page_cat))
+                ref_page_cats_source = reference_page.categories #get categories from page
+
+                for ref_page_cat in ref_page_cats_source: #check if any of the categories of the page belong to the categories of the other portal
+                    if ('Category:' + ref_page_cat) in nodes_dest_category_only:
+                        print("page %s has category %s in common with the other portal" % (page_title, ref_page_cat))
 
                         if page_title not in pages_categories_map.keys():
                             pages_categories_map[page_title] = []
 
-                        pages_categories_map[page_title].append((cat_source, main_page_cat))
+                        pages_categories_map[page_title].append((node_source, ref_page_cat))
 
                         pages_url_map[page_title] = page_url
             except (PageError, DisambiguationError):
-                print("main page for %s not found or ambiguous" % cat_source)
+                print("Page for %s not found or ambiguous" % node_source)
 
     return pages_categories_map, pages_url_map
 
+'''
+This function identifies the links in a category graph, including pages, that point to pages that have a category
+in the other category graph. Basically, it computes the overlap between the graphs in terms of links. 
+The function is the same as identify_page_category_map, the only difference is that an additional recursion 
+is included to access the links in each page. 
+'''
 
-def get_common_main_pages(category_crawl_A, category_crawl_B):
+def identify_link_category_map(category_crawler_source, category_crawler_dest):
+    pages_categories_map = {}
+    pages_url_map = {}
+
+    nodes_dest = nx.DiGraph(category_crawler_dest.get_category_graph()).nodes
+    nodes_source = nx.DiGraph(category_crawler_source.get_category_graph()).nodes
+
+    nodes_dest_category_only = [n for n in nodes_dest if
+                                n.startswith('Category:')]  # get those nodes that are categories
+
+    for node_source in nodes_source:
+
+        if node_source != 'root_node':
+
+            page_links = get_links_from_page(node_source)
+
+            for link_page_name in page_links:
+                print(link_page_name)
+
+                try:
+
+                    reference_page = get_page_from_node(link_page_name)
+
+                    page_url = reference_page.url
+                    page_title = reference_page.title
+
+                    ref_page_cats_source = reference_page.categories  # get categories from page
+
+                    for ref_page_cat in ref_page_cats_source:  # check if any of the categories of the page belong to the categories of the other portal
+                        if ('Category:' + ref_page_cat) in nodes_dest_category_only:
+                            print("page %s has category %s in common with the other portal" % (page_title, ref_page_cat))
+
+                            if page_title not in pages_categories_map.keys():
+                                pages_categories_map[page_title] = []
+
+                            pages_categories_map[page_title].append((link_page_name, ref_page_cat))
+
+                            pages_url_map[page_title] = page_url
+
+                except (PageError, DisambiguationError):
+                    print("Page for %s not found or ambiguous" % link_page_name)
+
+    return pages_categories_map, pages_url_map
+
+def get_common_linked_pages(category_crawl_A, category_crawl_B):
+
+    cat_map_A, url_map_A = identify_link_category_map(category_crawl_A, category_crawl_B)
+    cat_map_B, url_map_B = identify_link_category_map(category_crawl_B, category_crawl_A)
+
+    common_pages = set(cat_map_A.keys()).union(set(cat_map_B.keys()))
+    common_urls = set(url_map_A.values()).union(set(url_map_B.values()))
+
+    return common_pages, common_urls
+
+def get_common_pages(category_crawl_A, category_crawl_B):
 
     cat_map_A, url_map_A = identify_page_category_map(category_crawl_A, category_crawl_B)
     cat_map_B, url_map_B = identify_page_category_map(category_crawl_B, category_crawl_A)
 
-    common_main_pages = set(cat_map_A.keys()).union(set(cat_map_B.keys()))
+    common_pages = set(cat_map_A.keys()).union(set(cat_map_B.keys()))
     common_urls = set(url_map_A.values()).union(set(url_map_B.values()))
 
-    return common_main_pages, common_urls
+    return common_pages, common_urls
 
-#linked_pages = get_links_from_main_category_page("Category:Artificial intelligence")
-#print_categories_of_page(get_main_page_from_category("Category:Artificial intelligence"))
+'''
+Possible intersections are:
+- (-m) Common categories for main pages: main pages from any of the category graphs that have a category in common with the other graph
+- (-p) Common pages: pages form any of the category graphs that have a category in commmon with the other graph
+- (-l) Common links: links included in the pages of any category graph and having a category in common with the other graph
+'''
 
 def main():
     portal_A = sys.argv[1:][0]
     portal_B = sys.argv[1:][1]
     subcategory_depth = int(sys.argv[1:][2])
+    mode = sys.argv[1:][3]
+
+
+    if mode == '-m': #m: get common main pages
+        m_include_pages = False
+        out_message = 'Thesa are the main pages from any of the two category graphs that have a category in common with the other graph'
+    elif mode == '-p':
+        m_include_pages = True
+        out_message = 'Thesa are the pages from any of the two category graphs that have a category in common with the other graph'
+    elif mode == '-l':
+        m_include_pages = True
+        out_message = 'Thesa are the links from any of the pages of the two category graphs that have a category in common with the other graph'
+    else:
+        return -1
 
     d_A = CategoryCrawler(portal_A)
-    d_A.search_and_store_graph(portal_A, cat_page_id='unknown', subcategory_depth = subcategory_depth, max_depth=10, parent_node="root_node", include_pages=False, node_type='name')
+    d_A.search_and_store_graph(portal_A, cat_page_id='unknown', subcategory_depth=subcategory_depth, max_depth=10,
+                               parent_node="root_node", include_pages=m_include_pages, node_type='name')
 
     d_B = CategoryCrawler(portal_B)
-    d_B.search_and_store_graph(portal_B, cat_page_id='unknown', subcategory_depth = subcategory_depth, max_depth=10, parent_node="root_node", include_pages=False, node_type='name')
+    d_B.search_and_store_graph(portal_B, cat_page_id='unknown', subcategory_depth=subcategory_depth, max_depth=10,
+                               parent_node="root_node", include_pages=m_include_pages, node_type='name')
 
-    common_pages, common_url = get_common_main_pages(d_A,d_B)
 
-    print('Thesa are the main pages from any of the two category graphs that have a category in common with the other graph')
+    if mode == '-m' or mode == '-p':
+        common_pages, common_url = get_common_pages(d_A, d_B)
+    elif mode == '-l':
+        common_pages, common_url = get_common_linked_pages(d_A, d_B)
+    else:
+        return -1
+
+    print(out_message)
+
     for item in common_url:
         print(item)
-
     for item in common_pages:
         print(str(item))
 
 
-    #identify_page_category_map(d_A, d_B)
-    #identify_page_category_map(d_B, d_A)
-
-    # for cat_A in nx.DiGraph(d_A.get_category_graph()).nodes:
-    #
-    #     if cat_A != 'root_node':
-    #
-    #         page_title = get_main_page_from_category(cat_A).title
-    #
-    #         if(type(get_main_page_from_category(cat_A)) != str): #If the main page actually exists
-    #
-    #             main_page_cats_A = get_main_page_from_category(cat_A).categories #get categories from main page
-    #
-    #             categories_B = nx.DiGraph(d_B.get_category_graph()).nodes
-    #
-    #             for main_page_cat in main_page_cats_A: #check if any of the categories of the page belong to the categories of the other portal
-    #                 if ('Category:' + main_page_cat) in categories_B:
-    #                     print("page %s (main page of category %s) has category %s in common with B" % (page_title, cat_A, main_page_cat))
-    #         else:
-    #             print("main page for %s does not exist" % cat_A)
-
-
-#Call this module as, e.g.: python common_link_crawler.py "Category:Emerging technologies" "Category:Artificial intelligence" 1
+#Call this module as, e.g.: python common_link_crawler.py "Category:Emerging technologies" "Category:Artificial intelligence" 1 -m
 
 if __name__ == "__main__":
     main()
