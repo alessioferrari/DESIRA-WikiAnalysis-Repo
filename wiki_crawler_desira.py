@@ -15,7 +15,9 @@ import networkx as nx
 import re
 
 
-API_URL = 'http://en.wikipedia.org/w/api.php'
+#API_URL = 'http://en.wikipedia.org/w/api.php' #Wikipedia web
+API_URL = 'http://146.48.81.210/mediawiki-1.33.1/api.php' #Wikipedia Server WNLAB
+#API_URL = 'http://192.168.64.2/wiki/api.php' #Wikipedia local
 SEARCH_MAIN_ARTICLE_WIN = 1000 #window of chars to search in the content of a category page to identify whether a main article exists
 MAIN_ARTICLE_STRING = u'The main article for this <a href="/wiki/Help:Categories" title="Help:Categories">category</a> is <b><a href='
 WIKI_PAGE_PREFIX = 'https://en.wikipedia.org/'
